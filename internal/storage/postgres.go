@@ -93,6 +93,8 @@ func (r *PostgresRepository) CreateTask(task models.Task) error {
 }
 
 func (r *PostgresRepository) GetAllTasks() ([]models.Task, error) {
+	r.logger.Debug("GetAllTasks started")
+
 	query := `SELECT * FROM tasks ORDER BY created_at DESC`
 
 	rows, err := r.pool.Query(context.TODO(), query)
@@ -119,10 +121,18 @@ func (r *PostgresRepository) GetAllTasks() ([]models.Task, error) {
 		tasks = append(tasks, task)
 	}
 
+	r.logger.Info("Geted all tasks successfully",
+		zap.Int("number of pieces", len(tasks)),
+	)
 	return tasks, nil
 }
 
 func (r *PostgresRepository) UpdateTask(task models.Task) error {
+	r.logger.Debug("UpdateTask started",
+		zap.String("Title", task.Title),
+		zap.Int("ID", task.ID),
+	)
+
 	query := `
         UPDATE tasks 
         SET 
@@ -151,10 +161,19 @@ func (r *PostgresRepository) UpdateTask(task models.Task) error {
 		return ErrTaskNotFound
 	}
 
+	r.logger.Info("Task updated successfully",
+		zap.Int("id", task.ID),
+		zap.Time("created_at", task.CreatedAt),
+		zap.Time("updated_at", task.UpdatedAt),
+	)
 	return nil
 }
 
 func (r *PostgresRepository) DeleteTask(id int) error {
+	r.logger.Debug("DeleteTask started",
+		zap.Int("ID", id),
+	)
+
 	query := `DELETE FROM tasks WHERE id = $1`
 
 	result, err := r.pool.Exec(context.Background(), query, id)
@@ -169,10 +188,17 @@ func (r *PostgresRepository) DeleteTask(id int) error {
 		return fmt.Errorf("task with ID %d not found", id)
 	}
 
+	r.logger.Info("Task deleted successfully",
+		zap.Int("id", id),
+	)
 	return nil
 }
 
 func (r *PostgresRepository) GetTask(id int) (models.Task, error) {
+	r.logger.Debug("GetTask started",
+		zap.Int("ID", id),
+	)
+
 	var task models.Task
 	query := `
         SELECT id, title, description, status, created_at, updated_at
@@ -195,5 +221,11 @@ func (r *PostgresRepository) GetTask(id int) (models.Task, error) {
 		r.logger.Error("GetTask failed", zap.Error(err))
 		return models.Task{}, fmt.Errorf("select task: %w", err)
 	}
+
+	r.logger.Info("Task geted successfully",
+		zap.Int("id", task.ID),
+		zap.Time("created_at", task.CreatedAt),
+		zap.Time("updated_at", task.UpdatedAt),
+	)
 	return task, nil
 }
