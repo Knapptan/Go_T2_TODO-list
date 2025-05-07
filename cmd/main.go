@@ -2,12 +2,12 @@ package main
 
 import (
 	"context"
-	"fmt"
 
 	"TodoList/internal/config"
-	"TodoList/internal/models"
+	"TodoList/internal/handlers"
 	"TodoList/internal/storage"
 
+	"github.com/gofiber/fiber/v3"
 	"go.uber.org/zap"
 )
 
@@ -15,12 +15,12 @@ import (
 // @version 1.0
 // @description REST API для управления задачами (TODO-лист)
 
-// @contact.name API Support
-
 // @host localhost:8080
 // @BasePath /api/v1
 
 func main() {
+	app := fiber.New()
+
 	logger, _ := zap.NewProduction()
 	defer logger.Sync()
 
@@ -37,12 +37,13 @@ func main() {
 
 	repo := storage.NewPostgresRepository(pool, logger)
 
-	repo.CreateTask(models.Task{
-		Title:       "Example Title1",
-		Description: "Example Description1",
-		Status:      "new",
-	})
+	h := handlers.NewHandler(logger, repo)
 
-	fmt.Println(repo.GetAllTasks())
+	app.Get("/tasks", h.GetAllTasks)
+	app.Post("/tasks", h.CreateTask)
+	// app.Put("/tasks/:id", h.UpdateTask)
+	// app.Delete("/tasks/:id", h.DeleteTask)
 
+	port := ":" + cfg.Port
+	logger.Sugar().Fatalln(app.Listen(port))
 }

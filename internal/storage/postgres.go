@@ -60,6 +60,15 @@ func (r *PostgresRepository) CreateTask(task models.Task) error {
 		"status":      task.Status,
 	}
 
+	allowedStatuses := map[string]bool{"new": true, "in_progress": true, "done": true}
+	if !allowedStatuses[task.Status] {
+		r.logger.Error("task.Status wrong",
+			zap.String("query", query),
+			zap.Any("arguments", args),
+		)
+		return fmt.Errorf("invalid status: %s", task.Status)
+	}
+
 	row := r.pool.QueryRow(context.TODO(), query, args)
 	if err := row.Scan(&task.ID, &task.CreatedAt, &task.UpdatedAt); err != nil {
 		r.logger.Error("Failed to create task",
@@ -119,12 +128,14 @@ func (r *PostgresRepository) UpdateTask(task models.Task) error {
         WHERE id = $4
     `
 
+	task.UpdatedAt = time.Now()
 	result, err := r.pool.Exec(
 		context.TODO(),
 		query,
 		task.Title,
 		task.Description,
 		task.Status,
+		task.UpdatedAt,
 		task.ID,
 	)
 
