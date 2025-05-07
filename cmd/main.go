@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"TodoList/internal/config"
+	"TodoList/internal/models"
 	"TodoList/internal/storage"
 
 	"go.uber.org/zap"
@@ -34,6 +35,14 @@ func main() {
 	}
 	defer pool.Close()
 
-	fmt.Println(cfg)
+	repo := storage.NewPostgresRepository(pool, logger)
+
+	repo.CreateTask(models.Task{
+		Title:       "Example Title1",
+		Description: "Example Description1",
+		Status:      "new",
+	})
+
+	fmt.Println(repo.GetAllTasks())
 
 }

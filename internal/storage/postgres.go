@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"time"
 
+	"TodoList/internal/models"
+
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 )
@@ -36,4 +39,119 @@ func NewPostgresDB(ctx context.Context, connString string) (*pgxpool.Pool, error
 	}
 
 	return pool, nil
+}
+
+func (r *PostgresRepository) CreateTask(task models.Task) error {
+	r.logger.Debug("CreateTask started",
+		zap.String("Title", task.Title),
+		zap.Int("ID", task.ID),
+	)
+
+	query := `
+	INSERT INTO tasks
+	(title, description, status)
+	VALUES
+	(@title, @description, @status)
+	RETURNING id, created_at, updated_at`
+
+	args := pgx.NamedArgs{
+		"title":       task.Title,
+		"description": task.Description,
+		"status":      task.Status,
+	}
+
+	row := r.pool.QueryRow(context.TODO(), query, args)
+	if err := row.Scan(&task.ID, &task.CreatedAt, &task.UpdatedAt); err != nil {
+		r.logger.Error("Failed to create task",
+			zap.Error(err),
+			zap.String("query", query),
+			zap.Any("arguments", args),
+		)
+		return fmt.Errorf("create person: %w", err)
+	}
+
+	r.logger.Info("Task created successfully",
+		zap.Int("id", task.ID),
+		zap.Time("created_at", task.CreatedAt),
+		zap.Time("updated_at", task.UpdatedAt),
+	)
+	return nil
+}
+
+func (r *PostgresRepository) GetAllTasks() ([]models.Task, error) {
+	query := `SELECT * FROM tasks ORDER BY created_at DESC`
+
+	rows, err := r.pool.Query(context.TODO(), query)
+	if err != nil {
+		r.logger.Error("GetAllTasks failed", zap.Error(err))
+		return nil, fmt.Errorf("get tasks: %w", err)
+	}
+	defer rows.Close()
+
+	var tasks []models.Task
+	for rows.Next() {
+		var task models.Task
+		err := rows.Scan(
+			&task.ID,
+			&task.Title,
+			&task.Description,
+			&task.Status,
+			&task.CreatedAt,
+			&task.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scan task: %w", err)
+		}
+		tasks = append(tasks, task)
+	}
+
+	return tasks, nil
+}
+
+func (r *PostgresRepository) UpdateTask(task models.Task) error {
+	query := `
+        UPDATE tasks 
+        SET 
+            title = $1,
+            description = $2,
+            status = $3,
+            updated_at = NOW()
+        WHERE id = $4
+    `
+
+	result, err := r.pool.Exec(
+		context.TODO(),
+		query,
+		task.Title,
+		task.Description,
+		task.Status,
+		task.ID,
+	)
+
+	if err != nil {
+		r.logger.Error("UpdateTask failed", zap.Error(err))
+		return fmt.Errorf("update task: %w", err)
+	}
+
+	if result.RowsAffected() == 0 {
+		return fmt.Errorf("task with ID %d not found", task.ID)
+	}
+
+	return nil
+}
+
+func (r *PostgresRepository) DeleteTask(id int) error {
+	query := `DELETE FROM tasks WHERE id = $1`
+
+	result, err := r.pool.Exec(context.Background(), query, id)
+	if err != nil {
+		r.logger.Error("DeleteTask failed", zap.Error(err))
+		return fmt.Errorf("delete task: %w", err)
+	}
+
+	if result.RowsAffected() == 0 {
+		return fmt.Errorf("task with ID %d not found", id)
+	}
+
+	return nil
 }
