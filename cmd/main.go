@@ -1,8 +1,11 @@
 package main
 
 import (
-	"TodoList/internal/config"
+	"context"
 	"fmt"
+
+	"TodoList/internal/config"
+	"TodoList/internal/storage"
 
 	"go.uber.org/zap"
 )
@@ -24,6 +27,12 @@ func main() {
 	if err != nil {
 		logger.Fatal("Config load error", zap.Error(err))
 	}
+
+	pool, err := storage.NewPostgresDB(context.Background(), cfg.DatabaseURL())
+	if err != nil {
+		logger.Fatal("DB connection error", zap.Error(err))
+	}
+	defer pool.Close()
 
 	fmt.Println(cfg)
 

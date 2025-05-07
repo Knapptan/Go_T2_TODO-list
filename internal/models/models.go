@@ -1,6 +1,9 @@
 package models
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 type Task struct {
 	ID          int       `json:"id"`
@@ -22,4 +25,15 @@ type DBConfig struct {
 	User     string
 	Password string
 	DbName   string
+}
+
+func (cfg *Config) DatabaseURL() string {
+	return fmt.Sprintf(
+		"postgres://%s:%s@%s:%d/%s?sslmode=disable",
+		cfg.DBConfig.User,
+		cfg.DBConfig.Password,
+		cfg.DBConfig.Host,
+		cfg.DBConfig.Port,
+		cfg.DBConfig.DbName,
+	)
 }
