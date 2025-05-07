@@ -11,13 +11,6 @@ import (
 	"go.uber.org/zap"
 )
 
-// @title Todo List API
-// @version 1.0
-// @description REST API для управления задачами (TODO-лист)
-
-// @host localhost:8080
-// @BasePath /api/v1
-
 func main() {
 	app := fiber.New()
 
