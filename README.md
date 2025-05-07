@@ -41,7 +41,7 @@ DB_PASSWORD=yourpassword
 DB_NAME=todo_db
 ```
 
-#### 4. Применить миграции:
+#### 4. Если нет БД с именем todo_db - создать и применить миграции:
 
 ```bash
 psql -U postgres -d todo_db -a -f migrations/000001_create_tasks_table.up.sql
