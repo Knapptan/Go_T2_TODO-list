@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -10,6 +11,10 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
+)
+
+var (
+	ErrTaskNotFound = errors.New("task not found")
 )
 
 type PostgresRepository struct {
@@ -128,14 +133,12 @@ func (r *PostgresRepository) UpdateTask(task models.Task) error {
         WHERE id = $4
     `
 
-	task.UpdatedAt = time.Now()
 	result, err := r.pool.Exec(
 		context.TODO(),
 		query,
 		task.Title,
 		task.Description,
 		task.Status,
-		task.UpdatedAt,
 		task.ID,
 	)
 
@@ -145,7 +148,7 @@ func (r *PostgresRepository) UpdateTask(task models.Task) error {
 	}
 
 	if result.RowsAffected() == 0 {
-		return fmt.Errorf("task with ID %d not found", task.ID)
+		return ErrTaskNotFound
 	}
 
 	return nil
@@ -156,8 +159,10 @@ func (r *PostgresRepository) DeleteTask(id int) error {
 
 	result, err := r.pool.Exec(context.Background(), query, id)
 	if err != nil {
-		r.logger.Error("DeleteTask failed", zap.Error(err))
-		return fmt.Errorf("delete task: %w", err)
+		if result.RowsAffected() == 0 {
+			r.logger.Debug("UpdateTask: no rows affected", zap.Int("id", id))
+			return ErrTaskNotFound
+		}
 	}
 
 	if result.RowsAffected() == 0 {
@@ -165,4 +170,30 @@ func (r *PostgresRepository) DeleteTask(id int) error {
 	}
 
 	return nil
+}
+
+func (r *PostgresRepository) GetTask(id int) (models.Task, error) {
+	var task models.Task
+	query := `
+        SELECT id, title, description, status, created_at, updated_at
+        FROM tasks
+        WHERE id = $1
+    `
+	row := r.pool.QueryRow(context.Background(), query, id)
+	if err := row.Scan(
+		&task.ID,
+		&task.Title,
+		&task.Description,
+		&task.Status,
+		&task.CreatedAt,
+		&task.UpdatedAt,
+	); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			r.logger.Debug("GetTask: no rows", zap.Int("id", id))
+			return models.Task{}, ErrTaskNotFound
+		}
+		r.logger.Error("GetTask failed", zap.Error(err))
+		return models.Task{}, fmt.Errorf("select task: %w", err)
+	}
+	return task, nil
 }

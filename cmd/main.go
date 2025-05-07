@@ -41,8 +41,9 @@ func main() {
 
 	app.Get("/tasks", h.GetAllTasks)
 	app.Post("/tasks", h.CreateTask)
-	// app.Put("/tasks/:id", h.UpdateTask)
-	// app.Delete("/tasks/:id", h.DeleteTask)
+	app.Get("/tasks/:id", h.GetTask)
+	app.Put("/tasks/:id", h.UpdateTask)
+	app.Delete("/tasks/:id", h.DeleteTask)
 
 	port := ":" + cfg.Port
 	logger.Sugar().Fatalln(app.Listen(port))

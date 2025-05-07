@@ -18,3 +18,5 @@ curl -i -X PUT http://localhost:8080/tasks/1 \
         "description": "Milk, Bread, Eggs, Apples",
         "status": "in_progress"
       }'
+#Удаление задачи
+curl -i -X DELETE http://localhost:8080/tasks/1
